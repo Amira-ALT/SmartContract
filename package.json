@@ -1,0 +1,13 @@
+{
+  "name": "BLOCKCHAIN",
+  "version": "1.0.0",
+  "type": "module",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^4.2.0",
+    "ethers": "^6.17.0",
+    "hardhat": "^3.19.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.6.1"
+  }
+}
