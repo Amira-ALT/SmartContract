@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Billetterie NFT</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎟️</text></svg>" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="/vendor/ethers.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">🎟️</span>
+        <div>
+          <h1>Billetterie NFT</h1>
+          <p class="sub">Billets ERC-721 · revente plafonnée · contrôle d'accès</p>
+        </div>
+      </div>
+      <div id="netPill" class="pill pill-off"><span class="dot"></span><span id="netText">Connexion…</span></div>
+    </header>
+
+    <main class="layout">
+      <section class="panel account">
+        <div class="panel-head">
+          <h2>Compte</h2>
+          <span id="roleBadge" class="badge"></span>
+        </div>
+        <label class="field">
+          <span>Compte de test Hardhat</span>
+          <select id="accountSelect"></select>
+        </label>
+        <div class="or"><span>ou</span></div>
+        <button id="metamaskBtn" class="btn btn-ghost w-full">🦊 Connecter MetaMask</button>
+        <dl class="kv">
+          <dt>Adresse</dt>
+          <dd><code id="accAddress">—</code></dd>
+          <dt>Solde</dt>
+          <dd id="accBalance">—</dd>
+        </dl>
+      </section>
+
+      <section class="stats">
+        <div class="stat"><span class="stat-v" id="stTotal">–</span><span class="stat-l">Billets émis</span></div>
+        <div class="stat"><span class="stat-v" id="stListed">–</span><span class="stat-l">En vente</span></div>
+        <div class="stat"><span class="stat-v" id="stUsed">–</span><span class="stat-l">Utilisés</span></div>
+        <div class="stat"><span class="stat-v">110 %</span><span class="stat-l">Plafond revente · 2 % organisateur</span></div>
+      </section>
+
+      <section class="panel tickets">
+        <div class="panel-head">
+          <h2>Billets</h2>
+          <div class="chips" id="filters">
+            <button class="chip active" data-filter="all">Tous</button>
+            <button class="chip" data-filter="listed">En vente</button>
+            <button class="chip" data-filter="mine">Mes billets</button>
+          </div>
+        </div>
+        <div id="ticketGrid" class="grid"></div>
+      </section>
+
+      <section class="panel organizer" id="organizerPanel" hidden>
+        <div class="panel-head"><h2>Espace organisateur</h2></div>
+        <form id="createForm" class="form">
+          <h3>Émettre un billet</h3>
+          <label class="field">
+            <span>Destinataire</span>
+            <input id="createTo" list="accountList" placeholder="0x…" required autocomplete="off" />
+          </label>
+          <label class="field">
+            <span>Prix initial (ETH)</span>
+            <input id="createPrice" type="number" min="0" step="0.0001" value="0.01" required />
+          </label>
+          <button class="btn btn-primary w-full" type="submit">Créer le billet</button>
+        </form>
+        <form id="validateForm" class="form">
+          <h3>Valider une entrée</h3>
+          <label class="field">
+            <span>N° du billet</span>
+            <input id="validateId" type="number" min="1" step="1" required />
+          </label>
+          <button class="btn btn-primary w-full" type="submit">Valider l'entrée</button>
+        </form>
+      </section>
+
+      <section class="panel activity">
+        <div class="panel-head"><h2>Activité</h2></div>
+        <ol id="activityList" class="feed"></ol>
+      </section>
+    </main>
+
+    <datalist id="accountList"></datalist>
+    <div id="toasts" class="toasts" aria-live="polite"></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
