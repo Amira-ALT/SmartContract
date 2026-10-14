@@ -9,34 +9,21 @@ contract EntryValidator is Ownable {
 
     mapping(uint256 => bool) public usedTickets;
 
-    event TicketValidated(
-        uint256 indexed tokenId,
-        address indexed attendee
-    );
+    event TicketValidated(uint256 indexed tokenId, address indexed attendee);
 
-    constructor(address ticketAddress)
-        Ownable(msg.sender)
-    {
+    constructor(address ticketAddress) Ownable(msg.sender) {
         require(ticketAddress != address(0), "Invalid ticket");
         ticket = EventTicket(ticketAddress);
     }
 
     function validateEntry(uint256 tokenId) external onlyOwner {
-        require(
-            ticket.ownerOf(tokenId) != address(0),
-            "Ticket does not exist"
-        );
+        // ownerOf reverts for tickets that were never minted.
+        address attendee = ticket.ownerOf(tokenId);
 
-        require(
-            !usedTickets[tokenId],
-            "Ticket already used"
-        );
+        require(!usedTickets[tokenId], "Ticket already used");
 
         usedTickets[tokenId] = true;
 
-        emit TicketValidated(
-            tokenId,
-            ticket.ownerOf(tokenId)
-        );
+        emit TicketValidated(tokenId, attendee);
     }
 }

@@ -29,3 +29,7 @@
 
 # Snapshot cheatcodes output
 /snapshots
+
+# Local run output
+/logs
+/frontend/deployment.json

@@ -1,97 +1,99 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
 
- // SPDX-License-Identifier: MIT
- pragma solidity ^0.8.20;
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "./EventTicket.sol";
 
- import "@openzeppelin/contracts/access/Ownable.sol";
- import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
- import "./EventTicket.sol";
+contract TicketMarket is Ownable, ReentrancyGuard {
+    EventTicket public ticket;
+    address payable public organizer;
 
- contract TicketMarket is Ownable, ReentrancyGuard {
+    // Resale capped at 110% of the initial price, 2% fee to the organizer.
+    uint256 public constant MAX_RESALE_BPS = 11000;
+    uint256 public constant BPS_DENOMINATOR = 10000;
+    uint256 public constant ORGANIZER_FEE_BPS = 200;
 
-     EventTicket public ticket;
-     address payable public organizer;
+    struct Listing {
+        address payable seller;
+        uint256 price;
+        bool active;
+    }
 
-     uint256 public constant MAX_RESALE_BPS = 11000;
-     uint256 public constant BPS_DENOMINATOR = 10000;
-     uint256 public constant ORGANIZER_FEE_BPS = 200;
+    mapping(uint256 => Listing) public listings;
 
-     struct Listing {
-         address payable seller;
-         uint256 price;
-         bool active;
-     }
+    event Listed(uint256 indexed tokenId, address indexed seller, uint256 price);
+    event ListingCancelled(uint256 indexed tokenId, address indexed seller);
+    event Sold(
+        uint256 indexed tokenId,
+        address indexed seller,
+        address indexed buyer,
+        uint256 price,
+        uint256 fee
+    );
 
-     mapping(uint256 => Listing) public listings;
+    constructor(
+        address ticketAddress,
+        address payable organizerAddress
+    ) Ownable(msg.sender) {
+        require(ticketAddress != address(0), "Invalid ticket");
+        require(organizerAddress != address(0), "Invalid organizer");
 
-     constructor(
-         address ticketAddress,
-         address payable organizerAddress
-     ) Ownable(msg.sender) {
-         require(ticketAddress != address(0), "Invalid ticket");
-         require(organizerAddress != address(0), "Invalid organizer");
+        ticket = EventTicket(ticketAddress);
+        organizer = organizerAddress;
+    }
 
-         ticket = EventTicket(ticketAddress);
-         organizer = organizerAddress;
-     }
+    function maxResalePrice(uint256 tokenId) public view returns (uint256) {
+        return ticket.initialPrice(tokenId) * MAX_RESALE_BPS / BPS_DENOMINATOR;
+    }
 
-     function list(
-         uint256 tokenId,
-         uint256 price
-     ) external {
-         require(
-             ticket.ownerOf(tokenId) == msg.sender,
-             "Not ticket owner"
-         );
+    function list(uint256 tokenId, uint256 price) external {
+        require(ticket.ownerOf(tokenId) == msg.sender, "Not ticket owner");
+        require(price > 0, "Price must be positive");
+        require(price <= maxResalePrice(tokenId), "Resale price too high");
+        require(
+            ticket.getApproved(tokenId) == address(this) ||
+                ticket.isApprovedForAll(msg.sender, address(this)),
+            "Market not approved"
+        );
 
-         uint256 originalPrice = ticket.initialPrice(tokenId);
+        listings[tokenId] = Listing(payable(msg.sender), price, true);
 
-         uint256 maxPrice =
-             originalPrice * MAX_RESALE_BPS / BPS_DENOMINATOR;
+        emit Listed(tokenId, msg.sender, price);
+    }
 
-         require(price > 0, "Price must be positive");
-         require(price <= maxPrice, "Resale price too high");
+    function cancel(uint256 tokenId) external {
+        Listing memory item = listings[tokenId];
 
-         listings[tokenId] = Listing(
-             payable(msg.sender),
-             price,
-             true
-         );
-     }
+        require(item.active, "Ticket not for sale");
+        require(item.seller == msg.sender, "Not the seller");
 
-     function buy(uint256 tokenId)
-         external
-         payable
-         nonReentrant
-     {
-         Listing memory item = listings[tokenId];
+        listings[tokenId].active = false;
 
-         require(item.active, "Ticket not for sale");
-         require(msg.sender != item.seller, "Cannot buy own ticket");
-         require(msg.value == item.price, "Incorrect payment");
+        emit ListingCancelled(tokenId, msg.sender);
+    }
 
-         listings[tokenId].active = false;
+    function buy(uint256 tokenId) external payable nonReentrant {
+        Listing memory item = listings[tokenId];
 
-         uint256 fee =
-             item.price * ORGANIZER_FEE_BPS / BPS_DENOMINATOR;
+        require(item.active, "Ticket not for sale");
+        require(msg.sender != item.seller, "Cannot buy own ticket");
+        require(msg.value == item.price, "Incorrect payment");
+        require(ticket.ownerOf(tokenId) == item.seller, "Seller no longer owns ticket");
 
-         uint256 sellerAmount = item.price - fee;
+        listings[tokenId].active = false;
 
-         ticket.safeTransferFrom(
-             item.seller,
-             msg.sender,
-             tokenId
-         );
+        uint256 fee = item.price * ORGANIZER_FEE_BPS / BPS_DENOMINATOR;
+        uint256 sellerAmount = item.price - fee;
 
-         (bool sellerPaid, ) = item.seller.call{
-             value: sellerAmount
-         }("");
+        ticket.safeTransferFrom(item.seller, msg.sender, tokenId);
 
-         require(sellerPaid, "Seller payment failed");
+        (bool sellerPaid, ) = item.seller.call{value: sellerAmount}("");
+        require(sellerPaid, "Seller payment failed");
 
-         (bool organizerPaid, ) = organizer.call{
-             value: fee
-         }("");
+        (bool organizerPaid, ) = organizer.call{value: fee}("");
+        require(organizerPaid, "Organizer payment failed");
 
-         require(organizerPaid, "Organizer payment failed");
-     }
- }
+        emit Sold(tokenId, item.seller, msg.sender, item.price, fee);
+    }
+}

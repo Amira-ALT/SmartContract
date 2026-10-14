@@ -1,7 +1,18 @@
 {
-  "name": "BLOCKCHAIN",
+  "name": "smartcontract-ticketing",
   "version": "1.0.0",
+  "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "compile": "hardhat compile",
+    "node": "hardhat node",
+    "deploy": "hardhat run scripts/deploy.ts --network localhost",
+    "test": "hardhat run scripts/e2e.ts",
+    "ui": "node server.mjs"
+  },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^4.2.0",
     "ethers": "^6.17.0",

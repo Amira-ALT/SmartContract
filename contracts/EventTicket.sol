@@ -1,67 +1,62 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
 
- // SPDX-License-Identifier: MIT
- pragma solidity ^0.8.20;
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
- import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
- import "@openzeppelin/contracts/access/Ownable.sol";
+contract EventTicket is ERC721, Ownable {
+    uint256 public nextTokenId = 1;
 
- contract EventTicket is ERC721, Ownable {
+    mapping(uint256 => uint256) public initialPrice;
 
-     uint256 public nextTokenId = 1;
+    address public marketplace;
 
-     mapping(uint256 => uint256) public initialPrice;
+    event TicketCreated(uint256 indexed tokenId, address indexed recipient, uint256 price);
 
-     address public marketplace;
+    constructor() ERC721("EventTicket", "ETKT") Ownable(msg.sender) {}
 
-     constructor()
-         ERC721("EventTicket", "ETKT")
-         Ownable(msg.sender)
-     {}
+    function createTicket(
+        address recipient,
+        uint256 priceInWei
+    ) public onlyOwner returns (uint256) {
+        require(recipient != address(0), "Invalid recipient");
+        require(priceInWei > 0, "Price must be positive");
 
-     function createTicket(
-         address recipient,
-         uint256 priceInWei
-     ) public onlyOwner returns (uint256) {
+        uint256 tokenId = nextTokenId;
+        nextTokenId++;
 
-         require(recipient != address(0), "Invalid recipient");
-         require(priceInWei > 0, "Price must be positive");
+        initialPrice[tokenId] = priceInWei;
 
-         uint256 tokenId = nextTokenId;
+        _safeMint(recipient, tokenId);
 
-         nextTokenId++;
+        emit TicketCreated(tokenId, recipient, priceInWei);
 
-         initialPrice[tokenId] = priceInWei;
+        return tokenId;
+    }
 
-         _safeMint(recipient, tokenId);
+    function totalTickets() external view returns (uint256) {
+        return nextTokenId - 1;
+    }
 
-         return tokenId;
-     }
+    function setMarketplace(address market) public onlyOwner {
+        require(marketplace == address(0), "Market already set");
+        require(market != address(0), "Invalid market");
 
-     function setMarketplace(address market)
-         public
-         onlyOwner
-     {
-         require(marketplace == address(0), "Market already set");
-         require(market != address(0), "Invalid market");
+        marketplace = market;
+    }
 
-         marketplace = market;
-     }
+    // Secondary transfers (not mint/burn) are only allowed through the marketplace.
+    function _update(
+        address to,
+        uint256 tokenId,
+        address auth
+    ) internal override returns (address) {
+        address from = _ownerOf(tokenId);
 
-     function _update(
-         address to,
-         uint256 tokenId,
-         address auth
-     ) internal override returns (address) {
+        if (from != address(0) && to != address(0)) {
+            require(msg.sender == marketplace, "Transfers only through marketplace");
+        }
 
-         address from = _ownerOf(tokenId);
-
-         if (from != address(0) && to != address(0)) {
-             require(
-                 msg.sender == marketplace,
-                 "Transfers only through marketplace"
-             );
-         }
-
-         return super._update(to, tokenId, auth);
-     }
- }
+        return super._update(to, tokenId, auth);
+    }
+}
